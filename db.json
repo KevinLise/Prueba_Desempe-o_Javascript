@@ -4,7 +4,7 @@
       "id": 1,
       "name": "Administrator",
       "email": "admin@test.com",
-      "password": "123456",
+      "password": "Admin123*",
       "role": "admin"
     },
     {

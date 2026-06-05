@@ -1,7 +1,7 @@
 // ============================================================
 // VISTA DE RESERVAS
-// Admin: ve y gestiona todas las reservas (CRUD + aprobar/rechazar).
-// User:  ve solo sus reservas, puede crear, editar pendientes y cancelar.
+// Admin: CRUD completo sobre todas las reservas + aprobar/rechazar.
+// User:  ve sus reservas, crea nuevas, edita pendientes, cancela.
 // ============================================================
 import Navbar from './components/navbar.js'
 import { reservationsAPI, spacesAPI, usersAPI } from '../services/api.js'
@@ -9,7 +9,7 @@ import { authService } from '../services/auth.js'
 
 export default class ReservationsView {
     constructor() {
-        this.currentReservation = null       // null = modo creación
+        this.currentReservation = null   // null = modo creación; objeto = modo edición
         this.allReservations    = []
         this.spaces             = []
         this.users              = []
@@ -19,85 +19,97 @@ export default class ReservationsView {
 
     async render() {
         return `
-        ${await Navbar.render()}
+        <div class="app-shell">
+            ${await Navbar.render()}
 
-        <div class="container mx-auto px-4 py-8">
-            <div class="flex justify-between items-center mb-6">
-                <h1 class="text-xl font-semibold text-slate-700">Reservations</h1>
-                <button id="createBtn" class="btn-primary">+ New Reservation</button>
-            </div>
+            <main class="main-content">
+                <div class="flex justify-between items-start mb-8">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">Reservations</h1>
+                        <p class="text-sm text-gray-500 mt-1">
+                            ${this.isAdmin ? 'All reservations' : 'Your reservations'}
+                        </p>
+                    </div>
+                    <button id="createBtn" class="btn-primary">+ New Reservation</button>
+                </div>
 
-            <p id="loadingMsg" class="text-center py-8 text-slate-400 text-sm">Loading...</p>
-
-            <!-- Tabla de reservas -->
-            <div id="tableWrapper" class="card hidden overflow-x-auto p-0">
-                <table class="w-full text-sm text-left">
-                    <thead>
-                        <tr class="border-b border-slate-100">
-                            <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">Space</th>
-                            ${this.isAdmin
-                                ? '<th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">User</th>'
-                                : ''}
-                            <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">Date</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">Time</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">Reason</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">Status</th>
-                            <th class="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="reservationsBody"></tbody>
-                </table>
-                <p id="emptyMsg" class="hidden text-center py-8 text-slate-400 text-sm">
-                    No reservations found.
+                <!-- Estado de carga -->
+                <p id="loadingMsg" class="text-center py-12 text-gray-600 text-sm">
+                    Loading...
                 </p>
-            </div>
+
+                <!-- Tabla -->
+                <div id="tableWrapper" class="table-wrapper hidden">
+                    <table class="w-full">
+                        <thead>
+                            <tr>
+                                <th class="th">Space</th>
+                                ${this.isAdmin ? '<th class="th">User</th>' : ''}
+                                <th class="th">Date</th>
+                                <th class="th">Time</th>
+                                <th class="th">Reason</th>
+                                <th class="th">Status</th>
+                                <th class="th">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reservationsBody"></tbody>
+                    </table>
+                    <p id="emptyMsg" class="hidden text-center py-10 text-gray-600 text-sm">
+                        No reservations found.
+                    </p>
+                </div>
+            </main>
         </div>
 
         <!-- Modal: crear / editar reserva -->
-        <div id="reservationModal"
-             class="fixed inset-0 bg-slate-900/40 hidden items-center justify-center z-50">
-            <div class="bg-white rounded-xl shadow-lg w-full max-w-lg mx-4
-                        max-h-screen overflow-y-auto p-6 border border-slate-100">
-
-                <h2 id="modalTitle" class="text-lg font-semibold text-slate-700 mb-5">
+        <div id="reservationModal" class="modal-overlay">
+            <div class="modal-box">
+                <h2 id="modalTitle" class="text-lg font-bold text-white mb-1">
                     New Reservation
                 </h2>
+                <p class="text-xs text-gray-500 mb-6">Fill in the details below</p>
 
-                <!-- Error en el modal -->
+                <!-- Error dentro del modal -->
                 <div id="modalError"
-                     class="hidden mb-4 px-3 py-2 bg-rose-50 text-rose-600
-                            border border-rose-100 rounded-lg text-sm">
+                     class="hidden mb-5 px-4 py-3 bg-red-500/10 text-red-400
+                            border border-red-500/20 rounded-lg text-sm">
                 </div>
 
                 <form id="reservationForm" novalidate>
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Space</label>
+                        <label class="block text-xs font-semibold text-gray-400
+                                      uppercase tracking-wider mb-2">Space</label>
                         <select id="formSpaceId" class="input-field" required></select>
                     </div>
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Date</label>
+                        <label class="block text-xs font-semibold text-gray-400
+                                      uppercase tracking-wider mb-2">Date</label>
                         <input type="date" id="formDate" class="input-field" required>
                     </div>
-                    <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="grid grid-cols-2 gap-3 mb-4">
                         <div>
-                            <label class="block text-sm font-medium text-slate-600 mb-1.5">Start Time</label>
+                            <label class="block text-xs font-semibold text-gray-400
+                                          uppercase tracking-wider mb-2">Start</label>
                             <input type="time" id="formStartTime" class="input-field" required>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-slate-600 mb-1.5">End Time</label>
+                            <label class="block text-xs font-semibold text-gray-400
+                                          uppercase tracking-wider mb-2">End</label>
                             <input type="time" id="formEndTime" class="input-field" required>
                         </div>
                     </div>
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Reason</label>
+                        <label class="block text-xs font-semibold text-gray-400
+                                      uppercase tracking-wider mb-2">Reason</label>
                         <textarea id="formReason" rows="3" class="input-field"
                                   placeholder="Purpose of the reservation" required></textarea>
                     </div>
 
-                    <!-- Campo status solo visible para admin -->
+                    <!-- Campo status: solo visible para admin -->
                     ${this.isAdmin ? `
                     <div class="mb-5">
-                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Status</label>
+                        <label class="block text-xs font-semibold text-gray-400
+                                      uppercase tracking-wider mb-2">Status</label>
                         <select id="formStatus" class="input-field">
                             <option value="pending">Pending</option>
                             <option value="approved">Approved</option>
@@ -106,12 +118,11 @@ export default class ReservationsView {
                         </select>
                     </div>` : ''}
 
-                    <div class="flex gap-3 mt-5">
-                        <button type="submit" class="btn-primary flex-1">Save</button>
-                        <button type="button" id="closeModalBtn"
-                                class="flex-1 px-4 py-2 rounded-lg text-sm font-medium
-                                       text-slate-500 bg-slate-100 hover:bg-slate-200
-                                       transition-colors duration-200 cursor-pointer">
+                    <div class="flex gap-3 pt-2">
+                        <button type="submit" class="btn-primary flex-1 justify-center">
+                            Save
+                        </button>
+                        <button type="button" id="closeModalBtn" class="btn-ghost flex-1 justify-center">
                             Cancel
                         </button>
                     </div>
@@ -123,7 +134,7 @@ export default class ReservationsView {
     async mounted() {
         await Navbar.mounted()
 
-        // Carga espacios y usuarios en paralelo para llenar el modal y la tabla
+        // Carga espacios y usuarios en paralelo (necesarios para la tabla y el modal)
         try {
             [this.spaces, this.users] = await Promise.all([
                 spacesAPI.getAll(),
@@ -151,7 +162,7 @@ export default class ReservationsView {
         try {
             let reservations = await reservationsAPI.getAll()
 
-            // User solo ve sus propias reservas
+            // El user solo puede ver sus propias reservas (filtro en cliente)
             if (!this.isAdmin) {
                 reservations = reservations.filter(r => r.userId === this.currentUser.id)
             }
@@ -181,7 +192,7 @@ export default class ReservationsView {
 
         emptyMsg?.classList.add('hidden')
 
-        // Mapas auxiliares para mostrar nombres en vez de IDs
+        // Mapas id → nombre para no mostrar IDs en la UI
         const spaceMap = Object.fromEntries(this.spaces.map(s => [s.id, s.name]))
         const userMap  = Object.fromEntries(this.users.map(u => [u.id, u.name]))
 
@@ -191,59 +202,62 @@ export default class ReservationsView {
             const canCancel  = this._canCancel(r)
             const canApprove = this.isAdmin && r.status === 'pending'
 
-            // Construye los botones de acción según permisos
+            // Construye los botones de acción según permisos del rol
             const actions = [
                 canEdit
                     ? `<button data-action="edit" data-id="${r.id}"
-                               class="text-indigo-400 hover:text-indigo-600 text-xs mr-3
-                                      font-medium transition-colors">Edit</button>`
+                               class="text-cyan-400 hover:text-cyan-300 text-xs
+                                      font-medium mr-3 transition-colors">
+                           Edit
+                       </button>`
                     : '',
                 canApprove
                     ? `<button data-action="approve" data-id="${r.id}"
-                               class="text-teal-500 hover:text-teal-700 text-xs mr-3
-                                      font-medium transition-colors">Approve</button>
+                               class="text-emerald-400 hover:text-emerald-300 text-xs
+                                      font-medium mr-3 transition-colors">
+                           Approve
+                       </button>
                        <button data-action="reject" data-id="${r.id}"
-                               class="text-amber-500 hover:text-amber-700 text-xs mr-3
-                                      font-medium transition-colors">Reject</button>`
+                               class="text-amber-400 hover:text-amber-300 text-xs
+                                      font-medium mr-3 transition-colors">
+                           Reject
+                       </button>`
                     : '',
                 canCancel
                     ? `<button data-action="cancel" data-id="${r.id}"
-                               class="text-slate-400 hover:text-slate-600 text-xs mr-3
-                                      font-medium transition-colors">Cancel</button>`
+                               class="text-gray-400 hover:text-gray-300 text-xs
+                                      font-medium mr-3 transition-colors">
+                           Cancel
+                       </button>`
                     : '',
                 canDelete
                     ? `<button data-action="delete" data-id="${r.id}"
-                               class="text-rose-400 hover:text-rose-600 text-xs
-                                      font-medium transition-colors">Delete</button>`
+                               class="text-red-400 hover:text-red-300 text-xs
+                                      font-medium transition-colors">
+                           Delete
+                       </button>`
                     : ''
             ].join('')
 
             return `
-            <tr class="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
-                <td class="px-4 py-3 font-medium text-slate-600">
+            <tr class="tr-hover">
+                <td class="td font-medium text-gray-200">
                     ${spaceMap[r.spaceId] ?? 'Unknown'}
                 </td>
                 ${this.isAdmin
-                    ? `<td class="px-4 py-3 text-slate-500">
-                           ${userMap[r.userId] ?? 'Unknown'}
-                       </td>`
+                    ? `<td class="td text-gray-400">${userMap[r.userId] ?? 'Unknown'}</td>`
                     : ''}
-                <td class="px-4 py-3 text-slate-500">${r.date}</td>
-                <td class="px-4 py-3 text-slate-500 whitespace-nowrap">
-                    ${r.startTime} – ${r.endTime}
+                <td class="td">${r.date}</td>
+                <td class="td whitespace-nowrap">${r.startTime} – ${r.endTime}</td>
+                <td class="td max-w-xs truncate text-gray-400">${r.reason}</td>
+                <td class="td">
+                    <span class="badge ${this._badgeClass(r.status)}">${r.status}</span>
                 </td>
-                <td class="px-4 py-3 text-slate-500 max-w-xs truncate">${r.reason}</td>
-                <td class="px-4 py-3">
-                    <span class="px-2 py-0.5 text-xs rounded-md font-medium border
-                                 ${this._statusBadge(r.status)}">
-                        ${r.status}
-                    </span>
-                </td>
-                <td class="px-4 py-3 whitespace-nowrap">${actions}</td>
+                <td class="td whitespace-nowrap">${actions}</td>
             </tr>`
         }).join('')
 
-        // Event delegation: un solo listener en el tbody
+        // Event delegation: un listener en el tbody para todos los botones
         tbody.querySelectorAll('button[data-action]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id     = Number(btn.dataset.id)
@@ -259,18 +273,16 @@ export default class ReservationsView {
 
     // ── Permisos por fila ──────────────────────────────────────
 
-    // Admin edita cualquier reserva; user solo sus pendientes
+    // Admin edita cualquier reserva; user solo sus reservas pendientes
     _canEdit(r) {
         if (this.isAdmin) return true
         return r.userId === this.currentUser.id && r.status === 'pending'
     }
 
-    // Solo admin puede eliminar permanentemente
-    _canDelete(r) {
-        return this.isAdmin
-    }
+    // Solo el admin puede borrar permanentemente
+    _canDelete(r) { return this.isAdmin }
 
-    // User puede cancelar sus reservas pending o approved
+    // User puede cancelar sus propias reservas si son pending o approved
     _canCancel(r) {
         if (this.isAdmin) return false
         return r.userId === this.currentUser.id &&
@@ -334,7 +346,7 @@ export default class ReservationsView {
         const endTime   = document.getElementById('formEndTime').value
         const reason    = document.getElementById('formReason').value.trim()
 
-        // Validaciones antes de llamar a la API
+        // Validaciones del lado del cliente
         if (!spaceId || !date || !startTime || !endTime || !reason) {
             errorDiv.textContent = 'All fields are required.'
             errorDiv.classList.remove('hidden')
@@ -346,7 +358,7 @@ export default class ReservationsView {
             return
         }
 
-        // Regla de negocio: sin duplicados de espacio + fecha + horario
+        // Regla de negocio: no se permiten reservas duplicadas
         const duplicate = await this._checkDuplicate(spaceId, date, startTime, endTime)
         if (duplicate) {
             errorDiv.textContent = 'This space is already reserved for that date and time.'
@@ -361,7 +373,7 @@ export default class ReservationsView {
             startTime,
             endTime,
             reason,
-            // Admin puede cambiar el status desde el formulario; user siempre pending
+            // Admin puede cambiar el status; user siempre crea como pending
             status: this.isAdmin
                 ? document.getElementById('formStatus').value
                 : (this.currentReservation?.status ?? 'pending')
@@ -383,10 +395,10 @@ export default class ReservationsView {
         }
     }
 
-    // ── Acciones individuales ──────────────────────────────────
+    // ── Acciones de estado ─────────────────────────────────────
 
     async _deleteReservation(id) {
-        if (!confirm('Are you sure you want to delete this reservation?')) return
+        if (!confirm('Delete this reservation permanently?')) return
         try {
             await reservationsAPI.delete(id)
             this._showToast('Reservation deleted.')
@@ -396,11 +408,11 @@ export default class ReservationsView {
         }
     }
 
-    // Cambia solo el campo status con PATCH (no sobreescribe el resto)
+    // Actualiza solo el campo status con PATCH (no toca los demás campos)
     async _updateStatus(id, status) {
         try {
             await reservationsAPI.patch(id, { status })
-            this._showToast(`Reservation marked as ${status}.`)
+            this._showToast(`Marked as ${status}.`)
             await this.loadReservations()
         } catch {
             this._showToast('Error updating status.', 'error')
@@ -410,9 +422,9 @@ export default class ReservationsView {
     // ── Regla de negocio: sin duplicados ───────────────────────
 
     /**
-     * Devuelve true si ya existe una reserva activa en el mismo espacio,
-     * misma fecha y con horario solapado.
-     * Excluye la reserva que se está editando actualmente.
+     * Retorna true si ya existe una reserva activa (no cancelada/rechazada)
+     * para el mismo espacio, misma fecha y con horario solapado.
+     * Al editar, excluye la reserva actual del chequeo.
      */
     async _checkDuplicate(spaceId, date, startTime, endTime) {
         const all = await reservationsAPI.getAll()
@@ -420,21 +432,21 @@ export default class ReservationsView {
             if (this.currentReservation && r.id === this.currentReservation.id) return false
             if (r.spaceId !== spaceId || r.date !== date) return false
             if (r.status === 'cancelled' || r.status === 'rejected') return false
-            // Solapamiento: A empieza antes de que B termine Y A termina después de que B empiece
+            // Solapamiento: A empieza antes que B termine Y A termina después que B empieza
             return startTime < r.endTime && endTime > r.startTime
         })
     }
 
     // ── Helpers ────────────────────────────────────────────────
 
-    // Llena el select del modal solo con espacios disponibles
+    // Llena el select del modal con los espacios disponibles
     _populateSpacesSelect() {
         const select = document.getElementById('formSpaceId')
         if (!select) return
-        const available = this.spaces.filter(s => s.status === 'available')
-        select.innerHTML = available.map(s =>
-            `<option value="${s.id}">${s.name} (${s.type} · Cap: ${s.capacity})</option>`
-        ).join('')
+        select.innerHTML = this.spaces
+            .filter(s => s.status === 'available')
+            .map(s => `<option value="${s.id}">${s.name} (${s.type} · ${s.capacity} ppl)</option>`)
+            .join('')
     }
 
     _setupEvents() {
@@ -447,15 +459,14 @@ export default class ReservationsView {
         document.getElementById('reservationForm')
             ?.addEventListener('submit', e => this._handleSubmit(e))
 
-        // Cerrar modal al hacer clic en el fondo oscuro
+        // Cierra el modal al hacer clic en el overlay oscuro
         document.getElementById('reservationModal')
             ?.addEventListener('click', e => {
                 if (e.target.id === 'reservationModal') this._closeModal()
             })
     }
 
-    // Clases del badge según estado
-    _statusBadge(status) {
+    _badgeClass(status) {
         const map = {
             pending:   'badge-pending',
             approved:  'badge-approved',
@@ -465,12 +476,13 @@ export default class ReservationsView {
         return map[status] ?? 'badge-cancelled'
     }
 
-    // Notificación temporal en esquina inferior derecha
     _showToast(message, type = 'success') {
         const t = document.createElement('div')
-        t.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-md z-50
-                       text-sm font-medium text-white
-                       ${type === 'success' ? 'bg-teal-500' : 'bg-rose-400'}`
+        t.className = `fixed bottom-5 right-5 px-4 py-3 rounded-xl shadow-2xl z-50
+                       text-sm font-medium border toast-anim
+                       ${type === 'success'
+                           ? 'bg-gray-900 text-emerald-400 border-emerald-500/30'
+                           : 'bg-gray-900 text-red-400 border-red-500/30'}`
         t.textContent = message
         document.body.appendChild(t)
         setTimeout(() => t.remove(), 3000)

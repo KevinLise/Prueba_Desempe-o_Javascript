@@ -1,6 +1,6 @@
 // ============================================================
 // VISTA DE DASHBOARD (solo Admin)
-// Muestra estadísticas generales de reservas y lista reciente.
+// Estadísticas generales de reservas y lista de las más recientes.
 // ============================================================
 import Navbar from './components/navbar.js'
 import { reservationsAPI, usersAPI, spacesAPI } from '../services/api.js'
@@ -10,50 +10,64 @@ export default class DashboardView {
 
     async render() {
         return `
-        ${await Navbar.render()}
+        <div class="app-shell">
+            ${await Navbar.render()}
 
-        <div class="container mx-auto px-4 py-8">
-            <h1 class="text-xl font-semibold text-slate-700 mb-6">Dashboard</h1>
-
-            <!-- Tarjetas de estadísticas -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-
-                <div class="card text-center">
-                    <p class="text-xs text-slate-400 mb-2 uppercase tracking-wide">Total</p>
-                    <p id="statTotal" class="text-3xl font-bold text-indigo-400">-</p>
+            <main class="main-content">
+                <div class="mb-8">
+                    <h1 class="text-2xl font-bold text-white">Dashboard</h1>
+                    <p class="text-sm text-gray-500 mt-1">Overview of all reservations</p>
                 </div>
 
-                <div class="card text-center">
-                    <p class="text-xs text-slate-400 mb-2 uppercase tracking-wide">Pending</p>
-                    <p id="statPending" class="text-3xl font-bold text-amber-400">-</p>
+                <!-- Tarjetas de estadísticas -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+
+                    <div class="card-stat">
+                        <p class="text-xs text-gray-500 uppercase tracking-wider mb-3">
+                            Total Reservations
+                        </p>
+                        <p id="statTotal" class="text-3xl font-bold text-white">-</p>
+                    </div>
+
+                    <div class="card-stat">
+                        <p class="text-xs text-gray-500 uppercase tracking-wider mb-3">
+                            Pending
+                        </p>
+                        <p id="statPending" class="text-3xl font-bold text-amber-400">-</p>
+                    </div>
+
+                    <div class="card-stat">
+                        <p class="text-xs text-gray-500 uppercase tracking-wider mb-3">
+                            Approved
+                        </p>
+                        <p id="statApproved" class="text-3xl font-bold text-emerald-400">-</p>
+                    </div>
+
+                    <div class="card-stat">
+                        <p class="text-xs text-gray-500 uppercase tracking-wider mb-3">
+                            Spaces
+                        </p>
+                        <p id="statSpaces" class="text-3xl font-bold text-cyan-400">-</p>
+                    </div>
+
                 </div>
 
-                <div class="card text-center">
-                    <p class="text-xs text-slate-400 mb-2 uppercase tracking-wide">Approved</p>
-                    <p id="statApproved" class="text-3xl font-bold text-teal-400">-</p>
+                <!-- Reservas recientes -->
+                <div class="card">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-base font-semibold text-white">Recent Reservations</h2>
+                        <button id="viewAllBtn"
+                                class="text-xs text-emerald-400 hover:text-emerald-300
+                                       font-medium transition-colors duration-150">
+                            View all
+                        </button>
+                    </div>
+                    <div id="recentList" class="space-y-2">
+                        <p class="text-gray-600 text-sm">Loading...</p>
+                    </div>
                 </div>
 
-                <div class="card text-center">
-                    <p class="text-xs text-slate-400 mb-2 uppercase tracking-wide">Spaces</p>
-                    <p id="statSpaces" class="text-3xl font-bold text-slate-400">-</p>
-                </div>
-
-            </div>
-
-            <!-- Reservas recientes -->
-            <div class="card">
-                <div class="flex justify-between items-center mb-5">
-                    <h2 class="text-base font-semibold text-slate-600">Recent Reservations</h2>
-                    <button id="viewAllBtn"
-                            class="text-xs text-indigo-500 hover:text-indigo-600
-                                   font-medium transition-colors duration-200">
-                        View all
-                    </button>
-                </div>
-                <div id="recentList" class="space-y-2">
-                    <p class="text-slate-400 text-sm">Loading...</p>
-                </div>
-            </div>
+            </main>
         </div>`
     }
 
@@ -68,18 +82,18 @@ export default class DashboardView {
 
     async loadStats() {
         try {
-            // Carga en paralelo para no esperar una por una
+            // Carga los tres recursos en paralelo para mayor velocidad
             const [reservations, spaces, users] = await Promise.all([
                 reservationsAPI.getAll(),
                 spacesAPI.getAll(),
                 usersAPI.getAll()
             ])
 
-            // Mapas auxiliares id → nombre
-            const userMap  = Object.fromEntries(users.map(u => [u.id, u.name]))
-            const spaceMap = Object.fromEntries(spaces.map(s => [s.id, s.name]))
+            // Mapas auxiliares id → nombre para mostrar en la lista
+            const userMap  = Object.fromEntries(users.map(u  => [u.id,  u.name]))
+            const spaceMap = Object.fromEntries(spaces.map(s => [s.id,  s.name]))
 
-            // Actualiza los contadores de las tarjetas
+            // Actualiza los contadores de las tarjetas de estadística
             document.getElementById('statTotal').textContent
                 = reservations.length
             document.getElementById('statPending').textContent
@@ -89,30 +103,33 @@ export default class DashboardView {
             document.getElementById('statSpaces').textContent
                 = spaces.length
 
-            // Últimas 5 reservas (más recientes primero)
+            // Muestra las últimas 5 reservas (más recientes primero)
             const recent = [...reservations].reverse().slice(0, 5)
             const list   = document.getElementById('recentList')
             if (!list) return
 
             if (recent.length === 0) {
-                list.innerHTML = '<p class="text-slate-400 text-sm">No reservations yet.</p>'
+                list.innerHTML = '<p class="text-gray-600 text-sm">No reservations yet.</p>'
                 return
             }
 
             list.innerHTML = recent.map(r => `
                 <div class="flex items-center justify-between
-                            px-3 py-2.5 bg-slate-50 rounded-lg border border-slate-100">
-                    <div>
-                        <p class="text-sm font-medium text-slate-600">
+                            px-4 py-3 bg-gray-800/50 rounded-lg border border-gray-800
+                            hover:border-gray-700 transition-colors duration-150">
+                    <div class="min-w-0">
+                        <p class="text-sm font-medium text-gray-200 truncate">
                             ${spaceMap[r.spaceId] ?? 'Unknown space'}
                         </p>
-                        <p class="text-xs text-slate-400 mt-0.5">
-                            ${userMap[r.userId] ?? 'Unknown'} &bull;
-                            ${r.date} &bull; ${r.startTime}–${r.endTime}
+                        <p class="text-xs text-gray-500 mt-0.5">
+                            ${userMap[r.userId] ?? 'Unknown'}
+                            &nbsp;&middot;&nbsp;
+                            ${r.date}
+                            &nbsp;&middot;&nbsp;
+                            ${r.startTime}–${r.endTime}
                         </p>
                     </div>
-                    <span class="px-2 py-0.5 text-xs rounded-md font-medium border
-                                 ${this._statusBadge(r.status)}">
+                    <span class="badge ${this._badgeClass(r.status)} ml-4 shrink-0">
                         ${r.status}
                     </span>
                 </div>
@@ -123,8 +140,8 @@ export default class DashboardView {
         }
     }
 
-    // Devuelve las clases del badge según el estado de la reserva
-    _statusBadge(status) {
+    // Devuelve la clase de badge correspondiente al estado
+    _badgeClass(status) {
         const map = {
             pending:   'badge-pending',
             approved:  'badge-approved',

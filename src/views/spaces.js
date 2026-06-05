@@ -1,53 +1,60 @@
 // ============================================================
 // VISTA DE ESPACIOS (solo Admin)
 // CRUD completo de espacios de trabajo.
-// Los espacios están relacionados con las reservas.
+// Los espacios están relacionados con las reservas por spaceId.
 // ============================================================
 import Navbar from './components/navbar.js'
 import { spacesAPI } from '../services/api.js'
 
 export default class SpacesView {
     constructor() {
-        this.currentSpace = null  // null = modo creación
+        this.currentSpace = null  // null = modo creación; objeto = modo edición
     }
 
     async render() {
         return `
-        ${await Navbar.render()}
+        <div class="app-shell">
+            ${await Navbar.render()}
 
-        <div class="container mx-auto px-4 py-8">
-            <div class="flex justify-between items-center mb-6">
-                <h1 class="text-xl font-semibold text-slate-700">Spaces</h1>
-                <button id="createSpaceBtn" class="btn-primary">+ Add Space</button>
-            </div>
+            <main class="main-content">
+                <div class="flex justify-between items-start mb-8">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">Spaces</h1>
+                        <p class="text-sm text-gray-500 mt-1">Manage workspace spaces</p>
+                    </div>
+                    <button id="createSpaceBtn" class="btn-primary">+ Add Space</button>
+                </div>
 
-            <p id="loadingMsg" class="text-center py-8 text-slate-400 text-sm">Loading...</p>
+                <p id="loadingMsg" class="text-center py-12 text-gray-600 text-sm">
+                    Loading...
+                </p>
 
-            <!-- Grid de tarjetas — se muestra/oculta con style.display -->
-            <div id="spacesGrid" style="display:none"></div>
+                <!-- Grid de tarjetas — display gestionado por JS -->
+                <div id="spacesGrid" style="display:none"></div>
 
-            <p id="emptyMsg" class="hidden text-center py-8 text-slate-400 text-sm">
-                No spaces yet. Add one!
-            </p>
+                <p id="emptyMsg" class="hidden text-center py-12 text-gray-600 text-sm">
+                    No spaces yet. Add one to get started.
+                </p>
+            </main>
         </div>
 
         <!-- Modal: crear / editar espacio -->
-        <div id="spaceModal"
-             class="fixed inset-0 bg-slate-900/40 hidden items-center justify-center z-50">
-            <div class="bg-white rounded-xl shadow-lg w-full max-w-md mx-4 p-6
-                        border border-slate-100">
-
-                <h2 id="spaceModalTitle" class="text-lg font-semibold text-slate-700 mb-5">
+        <div id="spaceModal" class="modal-overlay">
+            <div class="modal-box">
+                <h2 id="spaceModalTitle" class="text-lg font-bold text-white mb-1">
                     Add Space
                 </h2>
+                <p class="text-xs text-gray-500 mb-6">Fill in the workspace details</p>
 
                 <form id="spaceForm" novalidate>
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Name</label>
+                        <label class="block text-xs font-semibold text-gray-400
+                                      uppercase tracking-wider mb-2">Name</label>
                         <input type="text" id="spaceName" class="input-field" required>
                     </div>
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Type</label>
+                        <label class="block text-xs font-semibold text-gray-400
+                                      uppercase tracking-wider mb-2">Type</label>
                         <select id="spaceType" class="input-field">
                             <option value="Meeting Room">Meeting Room</option>
                             <option value="Private Office">Private Office</option>
@@ -56,26 +63,31 @@ export default class SpacesView {
                         </select>
                     </div>
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Capacity</label>
-                        <input type="number" id="spaceCapacity" class="input-field" min="1" required>
+                        <label class="block text-xs font-semibold text-gray-400
+                                      uppercase tracking-wider mb-2">Capacity</label>
+                        <input type="number" id="spaceCapacity" class="input-field"
+                               min="1" placeholder="Number of people" required>
                     </div>
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Location</label>
-                        <input type="text" id="spaceLocation" class="input-field" required>
+                        <label class="block text-xs font-semibold text-gray-400
+                                      uppercase tracking-wider mb-2">Location</label>
+                        <input type="text" id="spaceLocation" class="input-field"
+                               placeholder="e.g. Floor 2" required>
                     </div>
-                    <div class="mb-5">
-                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Status</label>
+                    <div class="mb-6">
+                        <label class="block text-xs font-semibold text-gray-400
+                                      uppercase tracking-wider mb-2">Status</label>
                         <select id="spaceStatus" class="input-field">
                             <option value="available">Available</option>
                             <option value="unavailable">Unavailable</option>
                         </select>
                     </div>
                     <div class="flex gap-3">
-                        <button type="submit" class="btn-primary flex-1">Save</button>
+                        <button type="submit" class="btn-primary flex-1 justify-center">
+                            Save
+                        </button>
                         <button type="button" id="closeSpaceModalBtn"
-                                class="flex-1 px-4 py-2 rounded-lg text-sm font-medium
-                                       text-slate-500 bg-slate-100 hover:bg-slate-200
-                                       transition-colors duration-200 cursor-pointer">
+                                class="btn-ghost flex-1 justify-center">
                             Cancel
                         </button>
                     </div>
@@ -110,37 +122,55 @@ export default class SpacesView {
                 return
             }
 
-            // Activa el grid con CSS grid manualmente para evitar conflicto con Tailwind 'hidden'
+            // Activa el grid con CSS grid (Tailwind 'hidden' entra en conflicto con 'grid')
             grid.style.display = 'grid'
             grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
 
             grid.innerHTML = spaces.map(s => `
-                <div class="card hover:shadow-md transition-shadow duration-200">
-                    <div class="flex justify-between items-start mb-3">
-                        <h3 class="font-semibold text-slate-700">${s.name}</h3>
-                        <span class="px-2 py-0.5 text-xs rounded-md font-medium border
+                <div class="bg-gray-900 rounded-xl border border-gray-800
+                            hover:border-gray-700 transition-colors duration-200 p-5">
+
+                    <!-- Nombre + badge de estado -->
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="font-semibold text-white text-base leading-tight">
+                            ${s.name}
+                        </h3>
+                        <span class="badge ml-2 shrink-0
                                      ${s.status === 'available'
-                                         ? 'bg-teal-50 text-teal-600 border-teal-100'
-                                         : 'bg-slate-100 text-slate-500 border-slate-200'}">
+                                         ? 'badge-available'
+                                         : 'badge-unavailable'}">
                             ${s.status}
                         </span>
                     </div>
-                    <div class="space-y-1 text-sm text-slate-500 mb-4">
-                        <p><span class="text-slate-400">Type:</span> ${s.type}</p>
-                        <p><span class="text-slate-400">Capacity:</span> ${s.capacity} people</p>
-                        <p><span class="text-slate-400">Location:</span> ${s.location}</p>
+
+                    <!-- Detalles del espacio -->
+                    <div class="space-y-1.5 text-sm mb-5">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">Type</span>
+                            <span class="text-gray-300">${s.type}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">Capacity</span>
+                            <span class="text-gray-300">${s.capacity} people</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">Location</span>
+                            <span class="text-gray-300">${s.location}</span>
+                        </div>
                     </div>
-                    <div class="flex gap-2 pt-3 border-t border-slate-50">
+
+                    <!-- Botones de acción -->
+                    <div class="flex gap-2 pt-4 border-t border-gray-800">
                         <button data-action="edit" data-id="${s.id}"
-                                class="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium
-                                       text-indigo-500 bg-indigo-50 hover:bg-indigo-100
-                                       border border-indigo-100 transition-colors cursor-pointer">
+                                class="flex-1 py-1.5 rounded-lg text-xs font-medium
+                                       text-cyan-400 bg-cyan-400/10 hover:bg-cyan-400/20
+                                       border border-cyan-400/20 transition-colors cursor-pointer">
                             Edit
                         </button>
                         <button data-action="delete" data-id="${s.id}"
-                                class="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium
-                                       text-rose-400 bg-rose-50 hover:bg-rose-100
-                                       border border-rose-100 transition-colors cursor-pointer">
+                                class="flex-1 py-1.5 rounded-lg text-xs font-medium
+                                       text-red-400 bg-red-400/10 hover:bg-red-400/20
+                                       border border-red-400/20 transition-colors cursor-pointer">
                             Delete
                         </button>
                     </div>
@@ -252,7 +282,7 @@ export default class SpacesView {
         document.getElementById('spaceForm')
             ?.addEventListener('submit', e => this._handleSubmit(e))
 
-        // Cierra el modal al hacer clic en el fondo oscuro
+        // Cierra el modal al hacer clic en el overlay
         document.getElementById('spaceModal')
             ?.addEventListener('click', e => {
                 if (e.target.id === 'spaceModal') this._closeModal()
@@ -261,9 +291,11 @@ export default class SpacesView {
 
     _showToast(message, type = 'success') {
         const t = document.createElement('div')
-        t.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-md z-50
-                       text-sm font-medium text-white
-                       ${type === 'success' ? 'bg-teal-500' : 'bg-rose-400'}`
+        t.className = `fixed bottom-5 right-5 px-4 py-3 rounded-xl shadow-2xl z-50
+                       text-sm font-medium border toast-anim
+                       ${type === 'success'
+                           ? 'bg-gray-900 text-emerald-400 border-emerald-500/30'
+                           : 'bg-gray-900 text-red-400 border-red-500/30'}`
         t.textContent = message
         document.body.appendChild(t)
         setTimeout(() => t.remove(), 3000)
