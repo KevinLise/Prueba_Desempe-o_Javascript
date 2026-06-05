@@ -1,0 +1,81 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Administrator",
+      "email": "admin@test.com",
+      "password": "123456",
+      "role": "admin"
+    },
+    {
+      "id": 2,
+      "name": "John User",
+      "email": "user@test.com",
+      "password": "User123*",
+      "role": "user"
+    },
+    {
+      "id": 3,
+      "name": "Jane User",
+      "email": "user2@test.com",
+      "password": "User123*",
+      "role": "user"
+    }
+  ],
+  "spaces": [
+    {
+      "id": 1,
+      "name": "Meeting Room A",
+      "type": "Meeting Room",
+      "capacity": 10,
+      "location": "Floor 1",
+      "status": "available"
+    },
+    {
+      "id": 2,
+      "name": "Private Office 1",
+      "type": "Private Office",
+      "capacity": 4,
+      "location": "Floor 2",
+      "status": "available"
+    },
+    {
+      "id": 3,
+      "name": "Coworking Zone B",
+      "type": "Coworking",
+      "capacity": 20,
+      "location": "Floor 1",
+      "status": "available"
+    },
+    {
+      "id": 4,
+      "name": "Auditorium",
+      "type": "Auditorium",
+      "capacity": 100,
+      "location": "Ground Floor",
+      "status": "available"
+    }
+  ],
+  "reservations": [
+    {
+      "id": 1,
+      "userId": 2,
+      "spaceId": 1,
+      "date": "2026-06-10",
+      "startTime": "09:00",
+      "endTime": "11:00",
+      "reason": "Weekly team standup",
+      "status": "approved"
+    },
+    {
+      "id": 2,
+      "userId": 3,
+      "spaceId": 3,
+      "date": "2026-06-11",
+      "startTime": "14:00",
+      "endTime": "16:00",
+      "reason": "Remote work session",
+      "status": "pending"
+    }
+  ]
+}

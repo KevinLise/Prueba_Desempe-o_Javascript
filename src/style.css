@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body {
+        @apply bg-slate-100 text-slate-700;
+    }
+}
+
+@layer components {
+    /* Botón principal — indigo suave */
+    .btn-primary {
+        @apply bg-indigo-500 text-white px-4 py-2 rounded-lg
+               hover:bg-indigo-600 transition-colors duration-200 cursor-pointer
+               font-medium text-sm;
+    }
+
+    /* Botón peligro — rose apagado */
+    .btn-danger {
+        @apply bg-rose-400 text-white px-4 py-2 rounded-lg
+               hover:bg-rose-500 transition-colors duration-200 cursor-pointer
+               font-medium text-sm;
+    }
+
+    /* Botón éxito — teal suave */
+    .btn-success {
+        @apply bg-teal-500 text-white px-4 py-2 rounded-lg
+               hover:bg-teal-600 transition-colors duration-200 cursor-pointer
+               font-medium text-sm;
+    }
+
+    /* Campo de formulario */
+    .input-field {
+        @apply w-full px-3 py-2 border border-slate-200 rounded-lg
+               bg-white text-slate-700 placeholder-slate-400
+               focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300
+               transition-colors duration-150;
+    }
+
+    /* Tarjeta */
+    .card {
+        @apply bg-white rounded-xl shadow-sm border border-slate-100 p-6;
+    }
+
+    /* Link de la navbar */
+    .nav-link {
+        @apply text-slate-500 hover:text-indigo-500
+               transition-colors duration-200 font-medium text-sm;
+    }
+
+    /* Badges de estado */
+    .badge-pending {
+        @apply bg-amber-50 text-amber-700 border border-amber-200;
+    }
+    .badge-approved {
+        @apply bg-teal-50 text-teal-700 border border-teal-200;
+    }
+    .badge-rejected {
+        @apply bg-rose-50 text-rose-600 border border-rose-200;
+    }
+    .badge-cancelled {
+        @apply bg-slate-100 text-slate-500 border border-slate-200;
+    }
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+}
